@@ -1,0 +1,53 @@
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+
+    const folderId = data.folderId;
+    const nama = data.nama;
+    const npp = data.npp;
+    const question = data.question;
+    const filename = data.filename;
+    const audioBase64 = data.audioBase64;
+
+    if (!audioBase64) {
+      return sendError("audioBase64 tidak ditemukan.");
+    }
+
+    // Decode base64 → binary → Blob
+    const audioBytes = Utilities.base64Decode(audioBase64);
+    const blob = Utilities.newBlob(audioBytes, "audio/webm", filename);
+
+    // Buat folder
+    const mainFolder = DriveApp.getFolderById(folderId);
+    const folderName = `${nama}-${npp}`;
+    let userFolder;
+
+    const find = mainFolder.getFoldersByName(folderName);
+    if (find.hasNext()) userFolder = find.next();
+    else userFolder = mainFolder.createFolder(folderName);
+
+    // Simpan
+    const file = userFolder.createFile(blob);
+
+    return sendOK({
+      status: "success",
+      fileId: file.getId(),
+      fileName: file.getName()
+    });
+
+  } catch (err) {
+    return sendError(err.toString());
+  }
+}
+
+function sendOK(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function sendError(message) {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "error",
+    message
+  })).setMimeType(ContentService.MimeType.JSON);
+}
